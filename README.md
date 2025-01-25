@@ -28,7 +28,7 @@ A macOS command-line Pomodoro timer designed to boost your productivity and focu
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/pomodoro-timer.git
+   git clone https://github.com/urbanevac/pomodoro.git
    cd pomodoro-timer
    ```
 
