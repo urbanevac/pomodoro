@@ -1,104 +1,178 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Pomodoro Timer Script with Enhanced Error Handling and Comments
+# Strict error handling
+set -euo pipefail
 
-# Default work and break durations in minutes
-WORK_MINUTES=${1:-25}
-BREAK_MINUTES=${2:-5}
+# Configuration and Default Settings
+readonly CONFIG_DIR="${HOME}/.config/pomodoro"
+readonly LOG_DIR="${CONFIG_DIR}/logs"
+readonly CONFIG_FILE="${CONFIG_DIR}/config.sh"
 
-# Files for logging and statistics
-LOG_FILE="pomodoro_log.txt"
-STATS_FILE="pomodoro_stats.txt"
+# Default settings
+declare -i WORK_DURATION=25
+declare -i BREAK_DURATION=5
+declare -i LONG_BREAK_DURATION=15
+declare -i CYCLES_BEFORE_LONG_BREAK=4
 
-# Theme for display
-THEME="🔴 Focus Mode"
+# Color Codes
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly RESET='\033[0m'
 
-# Initialize statistics if the file doesn't exist
-if [[ ! -f $STATS_FILE ]]; then
-  echo "Work Sessions Completed: 0" > $STATS_FILE
-  echo "Break Sessions Taken: 0" >> $STATS_FILE
+# Trap for clean exit
+trap 'echo -e "\n${YELLOW}Pomodoro Timer Stopped.${RESET}"; exit 0' SIGINT SIGTERM
+
+# Validate numeric input
+validate_number() {
+    local value=$1
+    local name=$2
+    if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+        echo "Error: $name must be a positive integer" >&2
+        exit 1
+    fi
+}
+
+# Ensure configuration directory exists
+mkdir -p "$CONFIG_DIR" "$LOG_DIR"
+
+# Initialize configuration file if not exists
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    cat > "$CONFIG_FILE" << EOF
+WORK_DURATION=25
+BREAK_DURATION=5
+LONG_BREAK_DURATION=15
+CYCLES_BEFORE_LONG_BREAK=4
+EOF
 fi
 
-# Function to play a system sound notification
-play_sound() {
-  afplay /System/Library/Sounds/Glass.aiff 
+# Source and validate configuration
+source "$CONFIG_FILE"
+validate_number "$WORK_DURATION" "Work duration"
+validate_number "$BREAK_DURATION" "Break duration"
+validate_number "$LONG_BREAK_DURATION" "Long break duration"
+validate_number "$CYCLES_BEFORE_LONG_BREAK" "Cycles before long break"
+
+# Logging Function
+log_event() {
+    local message="$1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" >> "${LOG_DIR}/pomodoro.log"
 }
 
-# Function to log a message with timestamp to the log file
-log_activity() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> $LOG_FILE
+# Cross-platform Notification
+notify() {
+    local message="$1"
+    case "$OSTYPE" in
+        darwin*)
+            command -v osascript >/dev/null && osascript -e "display notification \"$message\" with title \"Pomodoro Timer\""
+            ;;
+        linux*)
+            command -v notify-send >/dev/null && notify-send "Pomodoro Timer" "$message"
+            ;;
+        *)
+            echo -e "${YELLOW}$message${RESET}"
+            ;;
+    esac
 }
 
-# Function to update session statistics in the stats file
-update_stats() {
-  local type=$1
+# Improved Progress Bar Function
+progress_bar() {
+    local -i duration=$1
+    local message=$2
+    local -i elapsed=0
 
-  if [[ "$type" == "work" ]]; then
-    # Update work session count using sed
-    sed -i.bak "s/\(Work Sessions Completed: \)\([0-9]\+\)/\1$((\2 + 1))/g" "$STATS_FILE"
-  elif [[ "$type" == "break" ]]; then
-    # Update break session count using sed
-    sed -i.bak "s/\(Break Sessions Taken: \)\([0-9]\+\)/\1$((\2 + 1))/g" "$STATS_FILE"
-  fi
-}
-
-# Function to display a progress bar during a session
-show_progress_bar() {
-  local duration=$1
-  local elapsed=0
-
-  # Validate duration input
-  if [[ $duration -eq 0 ]]; then
-    echo "Error: Duration cannot be zero."
-    return 1
-  fi
-
-  while [[ $elapsed -lt $duration ]]; do
-    sleep 1
-    elapsed=$((elapsed + 1))
-    local progress=$((elapsed * 100 / duration))
-    local bar_length=$((progress * 50 / 100))
-
-    # Handle case where bar_length is 0 to avoid errors
-    if [[ $bar_length -eq 0 ]]; then
-      printf "\rWork: [--------------------------------------------------] 0%%"
-    else
-      printf "\rWork: [%-50s] %d%%" "$(printf "#%.0s" $(seq 1 $bar_length))" $progress
+    if ((duration <= 0)); then
+        echo "Error: Invalid duration" >&2
+        return 1
     fi
-    sleep 0.1  # Add a slight delay for smoother progress bar animation
-  done
-  echo ""
+
+    while ((elapsed < duration)); do
+        local -i progress=$((elapsed * 100 / duration))
+        local -i bar_length=$((progress * 50 / 100))
+        
+        # Clear line and print without preserving color codes
+        printf "\r%-50s [%-50s] %d%%" "$message" "$(printf "#%.0s" $(seq 1 $bar_length))" "$progress"
+        
+        sleep 1
+        ((elapsed++))
+    done
+    echo -e "\r✓ Session Complete!                                                "
 }
 
-# Function to run a single work or break session
-run_session() {
-  local duration=$1
-  local message=$2
-
-  echo "$message"
-  log_activity "$message"
-  show_progress_bar $((duration * 60))  # Convert minutes to seconds
-  play_sound
+# Main Pomodoro Timer Function
+run_pomodoro() {
+    local -i cycle_count=0
+    
+    while true; do
+        # Work Session
+        log_event "Starting Work Session"
+        progress_bar $((WORK_DURATION * 60)) "🍅 Focus: Work Session"
+        notify "Time for a break!"
+        
+        # Break Selection (Short/Long)
+        ((cycle_count++))
+        if ((cycle_count % CYCLES_BEFORE_LONG_BREAK == 0)); then
+            log_event "Long Break Session"
+            progress_bar $((LONG_BREAK_DURATION * 60)) "🌿 Long Break"
+        else
+            log_event "Short Break Session"
+            progress_bar $((BREAK_DURATION * 60)) "🌱 Short Break"
+        fi
+        
+        notify "Break's over, back to work!"
+    done
 }
 
-# Main program loop
-while true; do
-  # Run a work session
-  run_session $WORK_MINUTES "$THEME: Work Session Started for $WORK_MINUTES minutes."
-  update_stats "work"
+# Help Function
+show_help() {
+    echo "Pomodoro Timer Help"
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -w, --work     Set work session duration (default: 25 min)"
+    echo "  -b, --break    Set short break duration (default: 5 min)"
+    echo "  -l, --long     Set long break duration (default: 15 min)"
+    echo "  -c, --cycles   Set cycles before long break (default: 4)"
+    echo "  -h, --help     Show this help message"
+}
 
-  echo "Take a break!"
-  sleep 1
-
-  # Run a break session
-  run_session $BREAK_MINUTES "$THEME: Break Session Started for $BREAK_MINUTES minutes."
-  update_stats "break"
-
-  echo "Back to work!"
-  sleep 1
-
-  # Display current session statistics
-  echo "\nSession Statistics:"
-  cat $STATS_FILE
-  echo ""
+# Parse Command Line Arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -w|--work) 
+            validate_number "$2" "Work duration"
+            WORK_DURATION="$2"
+            shift 2 
+            ;;
+        -b|--break) 
+            validate_number "$2" "Break duration"
+            BREAK_DURATION="$2"
+            shift 2 
+            ;;
+        -l|--long) 
+            validate_number "$2" "Long break duration"
+            LONG_BREAK_DURATION="$2"
+            shift 2 
+            ;;
+        -c|--cycles) 
+            validate_number "$2" "Cycles before long break"
+            CYCLES_BEFORE_LONG_BREAK="$2"
+            shift 2 
+            ;;
+        -h|--help) 
+            show_help
+            exit 0 
+            ;;
+        *) 
+            echo "Unknown option: $1"
+            show_help
+            exit 1 
+            ;;
+    esac
 done
+
+# Main Execution
+clear
+echo "🍅 Pomodoro Timer Started 🍅"
+log_event "Pomodoro Timer Initiated"
+run_pomodoro
