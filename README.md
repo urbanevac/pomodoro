@@ -1,154 +1,83 @@
-# Pomodoro Timer (Command Line App)
 
-A macOS command-line Pomodoro timer designed to boost your productivity and focus. This app includes features such as progress bars, pause/resume functionality, macOS notifications, sound alarms, detailed session logging, and cumulative session statistics.
+# Pomodoro Timer Bash Script
 
----
+A simple and customizable Pomodoro timer implemented in Bash. It helps you stay focused by alternating between work sessions and breaks, following the Pomodoro technique.
 
 ## Features
-
-- **Customizable Durations:** Set your own work and break session lengths.
-- **Progress Bar:** Visual representation of elapsed time for each session.
-- **Pause/Resume Functionality:** Pause and resume sessions as needed.
-- **MacOS Notifications:** Receive desktop alerts at the start of work and break sessions.
-- **Sound Alerts:** Plays an audio notification when a session ends.
-- **Session Logging:** Logs all session activities with timestamps into `pomodoro_log.txt`.
-- **Statistics Tracking:** Tracks completed work and break sessions in `pomodoro_stats.txt` and displays updated stats after every cycle.
-- **Themes:** Personalize your Pomodoro experience with different themes.
-
----
-
-## Requirements
-
-- **macOS**
-- **Bash Shell** (pre-installed on macOS)
-
----
+- **Work Sessions**: Customizable work duration (default: 25 minutes).
+- **Breaks**: Short (default: 5 minutes) and long (default: 15 minutes) breaks.
+- **Cycles**: Configurable number of work cycles before a long break (default: 4).
+- **Progress Bar**: Visual progress bar to show remaining time for each session.
+- **Cross-Platform Notifications**: Notifications for MacOS (via `osascript`) and Linux (via `notify-send`).
+- **Logging**: All session events are logged for later review.
+- **Clean Exit**: Handles exit signals gracefully with a message.
 
 ## Installation
-
-1. **Clone the Repository**:
+1. Clone the repository:
    ```bash
    git clone https://github.com/urbanevac/pomodoro.git
-   cd pomodoro-timer
+   cd pomodoro
    ```
 
-2. **Make the Script Executable**:
+2. Make the script executable:
    ```bash
    chmod +x pomodoro.sh
    ```
 
-3. **Optional: Install the Man Page**:
-   Save the provided man page file (`pomodoro.1`) to a directory in your `MANPATH` (e.g., `/usr/local/share/man/man1/`):
+3. Run the script:
    ```bash
-   sudo mv pomodoro.1 /usr/local/share/man/man1/
-   man -w  # Update the man database
-   ```
-   Access the manual with:
-   ```bash
-   man pomodoro
+   ./pomodoro.sh
    ```
 
----
+## Configuration
+Configuration is stored in a file at `~/.config/pomodoro/config.sh`. You can modify the default values there or set custom values using command-line options.
 
-## Usage
+### Default Settings:
+- Work Duration: 25 minutes
+- Break Duration: 5 minutes
+- Long Break Duration: 15 minutes
+- Cycles Before Long Break: 4
 
-Run the app with customizable durations or defaults:
+## Command-Line Options
+You can customize the timer duration and number of cycles using the following options:
 
-- **Default Usage** (25 minutes work, 5 minutes break):
-  ```bash
-  ./pomodoro.sh
-  ```
+```bash
+Usage: ./pomodoro.sh [options]
+Options:
+  -w, --work     Set work session duration (default: 25 min)
+  -b, --break    Set short break duration (default: 5 min)
+  -l, --long     Set long break duration (default: 15 min)
+  -c, --cycles   Set cycles before long break (default: 4)
+  -h, --help     Show this help message
+```
 
-- **Custom Durations**:
-  ```bash
-  ./pomodoro.sh [work_minutes] [break_minutes]
-  ```
-  Example:
-  ```bash
-  ./pomodoro.sh 30 10
-  ```
+Example:
+```bash
+./pomodoro.sh -w 30 -b 10 -l 20 -c 3
+```
+This will set the work session to 30 minutes, short break to 10 minutes, long break to 20 minutes, and require 3 cycles before a long break.
 
----
+## Logging
+Logs are stored in `~/.config/pomodoro/logs/pomodoro.log`. Each event, such as starting a work session or taking a break, is logged with a timestamp.
 
-## Controls
+## Cross-Platform Support
+This script supports notifications on both macOS and Linux:
+- macOS: Uses `osascript` for native notifications.
+- Linux: Uses `notify-send` for notifications.
 
-- **Pause:** Press `p` during a session to pause the timer.
-- **Resume:** Press `r` to resume the timer.
-- **Stop:** Press `Ctrl+C` to exit the app.
-
----
-
-## Logs and Statistics
-
-- **Session Logs:**
-  - Saved in `pomodoro_log.txt` in the script's directory.
-  - Example entry:
-    ```
-    [2025-01-25 12:30:00] Work Session Started for 25 minutes.
-    [2025-01-25 12:55:00] Break Session Started for 5 minutes.
-    ```
-
-- **Statistics:**
-  - Saved in `pomodoro_stats.txt` in the script's directory.
-  - Example:
-    ```
-    Work Sessions Completed: 3
-    Break Sessions Taken: 3
-    ```
-
----
+## Exit Handling
+Press `Ctrl+C` or `Ctrl+Z` to stop the timer. The script will display a message and exit cleanly.
 
 ## Example Output
-
-When running the script, you will see the following:
-
-- **Progress Bar:**
-  ```
-  Work: [####################--------------------] 50%
-  ```
-
-- **Statistics Display:**
-  ```
-  Session Statistics:
-  Work Sessions Completed: 3
-  Break Sessions Taken: 3
-  ```
-
----
-
-## Customization
-
-1. **Themes:**
-   Modify the `THEME` variable in the script to change the session theme (e.g., "🔴 Focus Mode").
-
-2. **Sounds:**
-   Replace the sound file used in the `play_sound` function with your custom audio file.
-   ```bash
-   afplay /path/to/your/custom_sound.aiff
-   ```
-
----
-
-## Author
-
-[Azizi Jennis]
-
----
+```bash
+🍅 Pomodoro Timer Started 🍅
+[2025-01-25 10:00:00] Starting Work Session
+🍅 Focus: Work Session [##########################------------------] 50%
+...
+[2025-01-25 10:25:00] Long Break Session
+🌿 Long Break [#######################----------------------------] 60%
+...
+```
 
 ## License
-
-This project is licensed under the MIT License. Feel free to use, modify, and distribute it as needed.
-
----
-
-## Future Enhancements
-
-- **Daily/Weekly Summary:** Show completed sessions by day or week.
-- **Focus Sounds:** Optionally play ambient sounds during work sessions.
-- **Custom Themes:** Allow users to define their own themes in a configuration file.
-- **Interactive Menus:** Provide a user-friendly interactive menu for controlling sessions.
-
----
-
-Enjoy staying productive with your new Pomodoro Timer!
-
+MIT License. See [LICENSE](LICENSE) for more details.
