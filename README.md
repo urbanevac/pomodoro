@@ -131,7 +131,7 @@ When running the script, you will see the following:
 
 ## Author
 
-[Your Name]
+[Azizi Jennis]
 
 ---
 
